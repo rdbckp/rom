@@ -1,4 +1,4 @@
-name: Android Build
+name: Android Build2
 
 on:
   workflow_dispatch:
@@ -10,15 +10,6 @@ jobs:
       contents: write
 
     steps:
-    - name: Generate a token
-      id: generate_token
-      uses: actions/create-github-app-token@v1
-      with:
-        app-id: ${{ secrets.APP_ID }}
-        private-key: ${{ secrets.APP_PEM }}
-        # Set the owner, so the token can be used in all repositories
-        owner: ${{ github.repository_owner }}
-
     - name: Checkout
       uses: actions/checkout@v4
 
