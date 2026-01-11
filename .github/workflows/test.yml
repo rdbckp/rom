@@ -2,7 +2,6 @@ name: Android 11 A02 Build (vendor.img)
 
 on:
   workflow_dispatch:
-  push:
 
 jobs:
   build:
