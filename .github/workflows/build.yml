@@ -1,4 +1,4 @@
-name: Android Build
+name: crDroid A02 (Vendor Integrated)
 
 on:
   workflow_dispatch:
@@ -6,49 +6,63 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
-    - name: Generate a token
-      id: generate_token
-      uses: actions/create-github-app-token@v1
-      with:
-        app-id: ${{ secrets.APP_ID }}
-        private-key: ${{ secrets.APP_PEM }}
-        # Set the owner, so the token can be used in all repositories
-        owner: ${{ github.repository_owner }}
+      # 1️⃣ Free space
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android
+          sudo apt clean
+          df -h
 
-    - name: Checkout
-      uses: actions/checkout@v4
+      # 2️⃣ Install deps (MINIMAL)
+      - name: Install build dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            git-core \
+            repo \
+            openjdk-11-jdk \
+            bc bison build-essential \
+            zip unzip curl \
+            python-is-python3 \
+            libncurses5
 
-    - name: Install dependencies
-      run: |
-        sudo apt update && sudo apt upgrade -y
-        sudo apt install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 x11proto-core-dev libx11-dev libgl1-mesa-dev libxml2-utils xsltproc unzip openjdk-11-jdk
+      # 3️⃣ Init crDroid source
+      - name: Init crDroid
+        run: |
+          mkdir crdroid && cd crdroid
+          repo init -u https://github.com/crdroidandroid/android.git -b 11.0
+          repo sync -c -j$(nproc --all) --no-tags --no-clone-bundle
 
-    - name: Install repo tool
-      run: |
-        mkdir -p ~/.bin
-        curl https://storage.googleapis.com/git-repo-downloads/repo > ~/.bin/repo
-        chmod +x ~/.bin/repo
-        echo "$HOME/.bin" >> $GITHUB_PATH
+      # 4️⃣ Clone device tree
+      - name: Clone device tree
+        run: |
+          cd crdroid
+          git clone https://github.com/rdbckp/device_samsung_a02 device/samsung/a02
 
-    - name: Repo init
-      run: |
-        mkdir android
-        cd android
-        repo init -u https://android.googlesource.com/platform/manifest -b android-11.0.0_r48
-        repo sync -c -j$(nproc)
+      # 5️⃣ Clone vendor blobs (shallow)
+      - name: Clone vendor blobs
+        run: |
+          cd crdroid
+          git clone --depth=1 https://github.com/rdbckp/vendor_a02 vendor/samsung/a02
 
-    - name: Copy trees
-      run: |
-        cp -r device android/
-        cp -r vendor android/
+      # 6️⃣ Setup build env
+      - name: Setup build environment
+        run: |
+          cd crdroid
+          source build/envsetup.sh
+          lunch crdroid_a02-userdebug
 
-    - name: Build
-      run: |
-        cd android
-        source build/envsetup.sh
-        lunch aosp_a02-userdebug
-        make -j$(nproc)
+      # 7️⃣ Build ONLY vendor.img
+      - name: Build vendor image only
+        run: |
+          cd crdroid
+          make vendorimage -j$(nproc)
+
+      # 8️⃣ Upload vendor.img
+      - name: Upload vendor.img
+        uses: actions/upload-artifact@v4
+        with:
+          name: vendor-img-a02
+          path: crdroid/out/target/product/a02/vendor.img
