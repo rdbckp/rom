@@ -1,0 +1,37 @@
+name: Android 11 Build A02
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y git-core gnupg flex bison build-essential zip curl         zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386         libncurses5 libncurses5-dev x11proto-core-dev         libx11-dev libgl1-mesa-dev libxml2-utils xsltproc unzip         openjdk-11-jdk
+
+    - name: Repo init
+      run: |
+        mkdir android
+        cd android
+        repo init -u https://android.googlesource.com/platform/manifest -b android-11.0.0_r48
+        repo sync -c -j$(nproc)
+
+    - name: Copy trees
+      run: |
+        cp -r device android/
+        cp -r vendor android/
+
+    - name: Build
+      run: |
+        cd android
+        source build/envsetup.sh
+        lunch aosp_a02-userdebug
+        make -j$(nproc)
