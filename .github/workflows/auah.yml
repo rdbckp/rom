@@ -1,0 +1,70 @@
+name: auah
+
+on:
+  workflow_dispatch:
+
+jobs:
+  vendor:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout repo utama
+      - name: Checkout ROM repo
+        uses: actions/checkout@v4
+
+      # 2️⃣ Free disk space (WAJIB)
+      - name: Free disk space
+        run: |
+          echo "Before cleanup:"
+          df -h
+
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo apt clean
+
+          echo "After cleanup:"
+          df -h
+
+      # 3️⃣ Clone vendor repo (shallow)
+      - name: Clone vendor repository
+        run: |
+          git clone --depth=1 -b main \
+            https://github.com/rdbckp/vendor_a02 vendor_tmp
+
+      # 4️⃣ Copy hanya proprietary blobs
+      - name: Copy proprietary vendor blobs
+        run: |
+          mkdir -p vendor/samsung/a02
+          cp -a vendor_tmp/vendor/samsung/a02/proprietary \
+                vendor/samsung/a02/
+
+      # 5️⃣ Hapus vendor repo setelah copy
+      - name: Cleanup vendor temp
+        run: |
+          rm -rf vendor_tmp
+          df -h
+
+      # 6️⃣ Validasi vendor blobs (ringan)
+      - name: Verify vendor blobs
+        run: |
+          echo "bin/hw:"
+          ls vendor/samsung/a02/proprietary/bin/hw | head
+
+          echo "lib/hw:"
+          ls vendor/samsung/a02/proprietary/lib/hw | head
+
+          echo "vintf:"
+          ls vendor/samsung/a02/proprietary/etc/vintf
+
+          echo "Total blob files:"
+          find vendor/samsung/a02/proprietary -type f | wc -l
+
+      # 7️⃣ OPTIONAL: simpan sebagai artifact (tanpa commit)
+      - name: Upload vendor blobs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vendor-a02-proprietary
+          path: vendor/samsung/a02/proprietary
+          retention-days: 3
