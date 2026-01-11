@@ -1,22 +1,22 @@
-name: crDroid A02 (Vendor Integrated)
+name: Build vendor.img (A02 Android 11)
 
 on:
   workflow_dispatch:
 
 jobs:
-  build:
+  vendorimage:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Free space
+      # 1️⃣ Free disk space (WAJIB)
       - name: Free disk space
         run: |
           sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android
           sudo apt clean
           df -h
 
-      # 2️⃣ Install deps (MINIMAL)
-      - name: Install build dependencies
+      # 2️⃣ Install minimal dependencies
+      - name: Install dependencies
         run: |
           sudo apt update
           sudo apt install -y \
@@ -26,36 +26,40 @@ jobs:
             bc bison build-essential \
             zip unzip curl \
             python-is-python3 \
-            libncurses5
+            libncurses-dev \
+            libssl-dev \
+            rsync \
+            ccache
 
-      # 3️⃣ Init crDroid source
-      - name: Init crDroid
+      # 3️⃣ Init crDroid Android 11
+      - name: Init crDroid source
         run: |
-          mkdir crdroid && cd crdroid
+          mkdir crdroid
+          cd crdroid
           repo init -u https://github.com/crdroidandroid/android.git -b 11.0
           repo sync -c -j$(nproc --all) --no-tags --no-clone-bundle
 
       # 4️⃣ Clone device tree
-      - name: Clone device tree
+      - name: Clone device tree (A02)
         run: |
           cd crdroid
           git clone https://github.com/rdbckp/device_samsung_a02 device/samsung/a02
 
-      # 5️⃣ Clone vendor blobs (shallow)
+      # 5️⃣ Clone vendor blobs (repo terpisah)
       - name: Clone vendor blobs
         run: |
           cd crdroid
           git clone --depth=1 https://github.com/rdbckp/vendor_a02 vendor/samsung/a02
 
-      # 6️⃣ Setup build env
-      - name: Setup build environment
+      # 6️⃣ Setup build environment
+      - name: Setup build env
         run: |
           cd crdroid
           source build/envsetup.sh
           lunch crdroid_a02-userdebug
 
-      # 7️⃣ Build ONLY vendor.img
-      - name: Build vendor image only
+      # 7️⃣ Build vendor.img ONLY
+      - name: Build vendorimage
         run: |
           cd crdroid
           make vendorimage -j$(nproc)
